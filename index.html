@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hive</title>
+  <link rel="manifest" href="manifest.json">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    .page-container {
+        display: none;
+        animation: fadeIn 0.5s ease-in-out;
+    }
+    .page-container.active {
+        display: flex;
+    }
+    .swipe-card {
+        transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+    }
+    .swipe-card.like-swipe {
+        transform: translate3d(500px, 0, 0) rotate(30deg);
+        opacity: 0;
+    }
+    .swipe-card.pass-swipe {
+        transform: translate3d(-500px, 0, 0) rotate(-30deg);
+        opacity: 0;
+    }
+    .animate-spin-slow {
+      animation: spin 2s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+  </style>
+</head>
+<body class="bg-sky-50 text-gray-800 antialiased overflow-hidden">
+
+  <!-- Main App Container -->
+  <div id="app-container" class="relative w-full h-screen flex flex-col justify-between">
+
+    <!-- Header/Navigation -->
+    <header id="app-header" class="hidden justify-around items-center p-4 bg-white shadow-sm z-50">
+      <button onclick="router.navigate('profile')" id="nav-profile" class="p-3 rounded-full text-gray-400 hover:bg-gray-200 transition-colors duration-200">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </button>
+      <button onclick="router.navigate('match')" id="nav-match" class="p-3 rounded-full text-gray-400 hover:bg-gray-200 transition-colors duration-200">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-heart"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+      </button>
+      <button onclick="router.navigate('matches')" id="nav-matches" class="p-3 rounded-full text-gray-400 hover:bg-gray-200 transition-colors duration-200">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-circle"><path d="M7.9 20A9.3 9.3 0 0 1 4 16.1V2l.2-1.5c.2-1.3 1.2-2.2 2.5-2.5 1.3-.2 2.5.5 3.5 1.5.8.8 1.5 1.2 2.5 1.2h.5l.2-.5c.3-.8.8-1.5 1.5-1.5 1.2 0 2.2.8 2.5 2.5 0 1.3-.8 2.5-1.5 3.5-.8.8-1.2 1.5-1.2 2.5v.5l.5.2c.8.3 1.5.8 1.5 1.5 0 1.2-.8 2.2-2.5 2.5-1.3 0-2.5-.8-3.5-1.5-.8-.8-1.5-1.2-2.5-1.2h-.5l-.2.5c-.3.8-.8 1.5-1.5 1.5-1.2 0-2.2-.8-2.5-2.5 0-1.3.8-2.5 1.5-3.5.8-.8-1.2-1.5-1.2-2.5z"/></svg>
+      </button>
+    </header>
+
+    <!-- Main content area -->
+    <main id="main-content" class="flex-1 overflow-auto flex flex-col items-center justify-center p-4">
+      
+      <!-- Loading Screen -->
+      <div id="loading-page" class="page-container flex-col items-center justify-center h-full w-full">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-loader-2 text-sky-500 animate-spin-slow h-12 w-12"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+      </div>
+
+      <!-- Login Screen -->
+      <div id="login-page" class="page-container flex-col items-center justify-center h-full w-full">
+        <div class="p-8 text-center bg-white rounded-xl shadow-lg border border-sky-100 max-w-sm w-full">
+          <h1 class="text-3xl font-bold text-sky-600 mb-4">🐝 Hive</h1>
+          <p class="text-gray-600 mb-6">Where Words Spark Connection</p>
+          <div id="login-error" class="text-red-500 text-sm mb-4 hidden"></div>
+
+          <!-- Email/Password Form -->
+          <form id="email-login-form" class="space-y-4 mb-6">
+            <input type="email" id="email-input" placeholder="Email" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" required />
+            <input type="password" id="password-input" placeholder="Password" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" required />
+            <button type="submit" id="email-login-button" class="w-full px-6 py-3 bg-sky-500 text-white font-semibold rounded-full shadow-md hover:bg-sky-600 transition-colors duration-200">
+              Login or Sign up
+            </button>
+          </form>
+
+          <div class="relative flex py-5 items-center">
+            <div class="flex-grow border-t border-gray-300"></div>
+            <span class="flex-shrink mx-4 text-gray-400">OR</span>
+            <div class="flex-grow border-t border-gray-300"></div>
+          </div>
+
+          <!-- Google Sign-in Button -->
+          <button id="google-login-button" class="w-full px-6 py-3 bg-white text-gray-600 font-semibold rounded-full shadow-md hover:bg-gray-100 transition-colors duration-200 border border-gray-300 flex items-center justify-center">
+            <img src="https://www.gstatic.com/images/branding/product/2x/gsa_48dp.png" alt="Google logo" class="h-6 w-6 mr-2">
+            Sign in with Google
+          </button>
+        </div>
+      </div>
+
+      <!-- Profile Creation Screen -->
+      <div id="create-profile-page" class="page-container flex-col items-center h-full w-full overflow-y-auto">
+        <div class="w-full max-w-md bg-white p-8 rounded-xl shadow-lg border border-sky-100 my-8">
+          <h2 class="text-2xl font-bold text-center text-sky-600 mb-6">Create Your Hive Profile</h2>
+          <p id="profile-creation-error" class="text-red-500 text-center mb-4 hidden"></p>
+          <form id="profile-creation-form" class="space-y-4">
+            <input type="text" id="profile-name" placeholder="Display Name" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" required />
+            <input type="number" id="profile-age" placeholder="Age" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" required />
+            <select id="profile-gender" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" required>
+              <option value="">Select Gender</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Non-binary">Non-binary</option>
+            </select>
+            <input type="text" id="profile-city" placeholder="City / Location" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" required />
+            <textarea id="profile-bio" placeholder="Short Bio (max 300 characters)" rows="4" maxlength="300" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" required></textarea>
+            <p id="bio-count" class="text-right text-sm text-gray-500">0/300</p>
+            <input type="text" id="profile-interests" placeholder="Interests (comma-separated, e.g., 'Reading, Hiking')" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" required />
+            <input type="text" id="profile-hobbies" placeholder="Hobbies (comma-separated, e.g., 'Coding, Gaming')" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" required />
+            <input type="text" id="profile-looking-for" placeholder="What I'm looking for" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" required />
+            <input type="number" id="profile-height" placeholder="Height (cm)" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" required />
+            <input type="text" id="profile-semester" placeholder="Semester (e.g., '5th')" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" required />
+            <input type="text" id="profile-branch" placeholder="Branch (e.g., 'Computer Science')" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" required />
+            <select id="profile-starter-select" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500">
+              <option value="">Select a Conversation Starter</option>
+              <!-- Populated by JS -->
+            </select>
+            <textarea id="profile-starter-text" placeholder="Write or complete your opener line here..." rows="2" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" required></textarea>
+            <button type="submit" id="create-profile-button" class="mt-6 w-full px-6 py-3 bg-sky-500 text-white font-semibold rounded-full shadow-md hover:bg-sky-600 transition-colors duration-200">
+              Create Profile
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Match Swiping Screen -->
+      <div id="match-page" class="page-container flex-col items-center justify-center h-full w-full">
+        <div id="match-card-container" class="relative w-full max-w-sm h-[60vh] flex justify-center items-center">
+            <!-- Cards populated by JS -->
+        </div>
+        <div id="match-buttons" class="flex space-x-8 mt-8 hidden">
+          <button id="pass-button" class="bg-gray-200 text-gray-500 p-4 rounded-full shadow-lg transition-transform duration-300 hover:scale-110">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          </button>
+          <button id="like-button" class="bg-sky-500 text-white p-4 rounded-full shadow-lg transition-transform duration-300 hover:scale-110">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-heart"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+          </button>
+        </div>
+        <div id="no-matches-message" class="text-center text-gray-600 p-6 hidden">
+          <p class="text-xl font-semibold">No more profiles for now!</p>
+          <p class="mt-2">Check back later for new connections.</p>
+        </div>
+      </div>
+
+      <!-- Matches List Screen -->
+      <div id="matches-page" class="page-container flex-col items-center w-full h-full">
+        <h2 class="text-2xl font-bold text-center text-sky-600 mt-4">Your Matches</h2>
+        <ul id="matches-list" class="w-full max-w-md divide-y divide-gray-200 mt-4 overflow-y-auto">
+          <!-- Matches populated by JS -->
+        </ul>
+        <div id="no-matches-found" class="flex flex-col items-center justify-center h-full text-center text-gray-600 p-6 hidden">
+          <p class="text-xl font-semibold">No matches yet!</p>
+          <p class="mt-2">Start swiping to find new connections.</p>
+        </div>
+      </div>
+
+      <!-- Profile View Screen -->
+      <div id="profile-page" class="page-container flex-col items-center h-full w-full overflow-y-auto">
+        <div id="profile-details-container" class="flex flex-col items-center p-6 bg-white rounded-xl shadow-lg m-4 border border-sky-100 w-full max-w-md">
+          <!-- Profile details populated by JS -->
+        </div>
+      </div>
+
+      <!-- Settings Screen -->
+      <div id="settings-page" class="page-container flex-col items-center h-full w-full overflow-y-auto">
+        <div id="settings-container" class="flex flex-col items-center p-6 bg-white rounded-xl shadow-lg m-4 border border-sky-100 w-full max-w-md">
+          <!-- Settings content populated by JS -->
+        </div>
+      </div>
+
+      <!-- Chat Screen -->
+      <div id="chat-page" class="page-container flex-col justify-between w-full h-full">
+        <div id="chat-header" class="flex items-center justify-between p-4 bg-sky-500 text-white shadow-lg">
+          <button id="chat-back-button" class="text-white text-xl p-2 rounded-full hover:bg-sky-600 transition-colors duration-200">&larr;</button>
+          <h3 id="chat-match-name" class="text-xl font-bold"></h3>
+          <div class="w-10"></div>
+        </div>
+        <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4">
+          <!-- Messages populated by JS -->
+        </div>
+        <div id="chat-input-area" class="p-4 bg-white flex flex-col shadow-inner">
+          <div class="flex items-center">
+            <input type="text" id="chat-input" class="flex-1 p-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-sky-500" placeholder="Type a message..." />
+            <button id="chat-send-button" class="ml-2 bg-sky-500 text-white p-3 rounded-full shadow-md hover:bg-sky-600 transition-colors duration-200">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-send"><path d="m22 2-7 20-4-9-9-4 20-7Z"/><path d="M22 2 11 13"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Custom Modal -->
+      <div id="custom-modal-backdrop" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4 hidden">
+        <div id="custom-modal" class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm text-center">
+          <h3 id="modal-title" class="text-xl font-bold text-gray-900 mb-2"></h3>
+          <p id="modal-message" class="text-gray-600 mb-6"></p>
+          <div class="flex justify-around">
+            <button id="modal-cancel" class="px-4 py-2 text-gray-600 rounded-full hover:bg-gray-100 transition-colors duration-200">Cancel</button>
+            <button id="modal-confirm" class="px-4 py-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors duration-200">Confirm</button>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js"></script>
+
+  <script>
+    // --- PWA Service Worker Registration ---
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('service-worker.js').then(registration => {
+                console.log('SW registered: ', registration);
+            }).catch(registrationError => {
+                console.log('SW registration failed: ', registrationError);
+            });
+        });
+    }
+  </script>
+
+  <!-- Main Application Logic -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, query, where, addDoc, serverTimestamp, runTransaction, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // --- Global State and Router ---
+    const state = {
+      user: null,
+      profile: null,
+      potentialMatches: [],
+      matches: [],
+      activeChat: null,
+      currentView: 'loading',
+      isAuthReady: false
+    };
+
+    const router = {
+      views: ['loading', 'login', 'create-profile', 'match', 'matches', 'profile', 'settings', 'chat'],
+      navigate: (viewName) => {
+        if (!router.views.includes(viewName)) return;
+        state.currentView = viewName;
+        render();
+      }
+    };
+
+    const render = () => {
+      document.querySelectorAll('.page-container').forEach(page => page.classList.remove('active'));
+      document.getElementById('app-header').classList.add('hidden');
+
+      const activePage = document.getElementById(state.currentView + '-page');
+      if (activePage) {
+        activePage.classList.add('active');
+        if (state.currentView !== 'login' && state.currentView !== 'create-profile') {
+          document.getElementById('app-header').classList.remove('hidden');
+          document.querySelectorAll('#app-header button').forEach(btn => {
+            btn.classList.remove('bg-sky-100', 'text-sky-600');
+            btn.classList.add('text-gray-400', 'hover:bg-gray-200');
+          });
+          const activeNavButton = document.getElementById('nav-' + (state.currentView === 'settings' ? 'profile' : state.currentView));
+          if(activeNavButton) {
+            activeNavButton.classList.add('bg-sky-100', 'text-sky-600');
+            activeNavButton.classList.remove('text-gray-400', 'hover:bg-gray-200');
+          }
+        }
+      }
+    };
+
+ // Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyDsT0r1gawSJ7c9manvkqrf2125_Y0kibU",
+  authDomain: "hive-dating.firebaseapp.com",
+  projectId: "hive-dating",
+  storageBucket: "hive-dating.firebasestorage.app",
+  messagingSenderId: "978324844879",
+  appId: "1:978324844879:web:47406106971c9f8779d53a",
+  measurementId: "G-J5PDLB0LKM"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+    const appId = "your-app-id";
+    const initialAuthToken = "";
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // --- Core Application Logic ---
+    let unsubscribeProfile = null;
+    let unsubscribeMatches = null;
+    let unsubscribePotentialMatches = null;
+
+    const startListeners = (uid) => {
+      const profileRef = doc(db, `artifacts/${appId}/users/${uid}/profiles/my-profile`);
+      unsubscribeProfile = onSnapshot(profileRef, (docSnap) => {
+        if (docSnap.exists()) {
+          state.profile = docSnap.data();
+          renderProfilePage();
+          renderSettingsPage();
+        }
+      });
+      const matchesRef = collection(db, `artifacts/${appId}/users/${uid}/matches`);
+      unsubscribeMatches = onSnapshot(matchesRef, (snapshot) => {
+        state.matches = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderMatchesPage();
+      });
+      const publicProfilesRef = collection(db, `artifacts/${appId}/public/data/profiles`);
+      unsubscribePotentialMatches = onSnapshot(publicProfilesRef, (snapshot) => {
+        const allProfiles = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
+        state.potentialMatches = allProfiles.filter(p => p.uid !== uid && !state.matches.some(m => m.matchId === p.uid));
+        renderMatchPage();
+      });
+    };
+
+    const stopListeners = () => {
+      if (unsubscribeProfile) unsubscribeProfile();
+      if (unsubscribeMatches) unsubscribeMatches();
+      if (unsubscribePotentialMatches) unsubscribePotentialMatches();
+    };
+
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        state.user = user;
+        const profileRef = doc(db, `artifacts/${appId}/users/${user.uid}/profiles/my-profile`);
+        const docSnap = await getDoc(profileRef);
+        if (docSnap.exists()) {
+          state.profile = docSnap.data();
+          router.navigate('match');
+          startListeners(user.uid);
+        } else {
+          router.navigate('create-profile');
+        }
+      } else {
+        state.user = null;
+        state.profile = null;
+        stopListeners();
+        router.navigate('login');
+      }
+      state.isAuthReady = true;
+    });
+
+    const handleInitialAuth = async () => {
+      try {
+        if (initialAuthToken) {
+          await signInWithCustomToken(auth, initialAuthToken);
+        }
+      } catch (e) {
+        console.error("Authentication failed:", e);
+        showModal("Error", "Could not sign in. Please try again.");
+      }
+    };
+    handleInitialAuth();
+
+    // --- UI Rendering Functions ---
+
+    // Modal UI
+    const modal = {
+      backdrop: document.getElementById('custom-modal-backdrop'),
+      title: document.getElementById('modal-title'),
+      message: document.getElementById('modal-message'),
+      confirmBtn: document.getElementById('modal-confirm'),
+      cancelBtn: document.getElementById('modal-cancel'),
+    };
+    const showModal = (title, message, onConfirm = null, onCancel = null) => {
+      modal.title.textContent = title;
+      modal.message.textContent = message;
+      modal.confirmBtn.onclick = onConfirm;
+      modal.cancelBtn.onclick = onCancel || (() => modal.backdrop.classList.add('hidden'));
+      modal.confirmBtn.classList.remove('hidden');
+      if (!onConfirm) modal.confirmBtn.classList.add('hidden');
+      modal.backdrop.classList.remove('hidden');
+    };
+
+    // Profile Creation UI
+    const conversationStarters = [
+      "My dream vacation would be...",
+      "The best concert I ever saw was...",
+      "My guilty pleasure TV show is...",
+      "The one thing I can't live without is...",
+      "If I could have any superpower, it would be...",
+      "A fun fact about me is...",
+    ];
+    const profileForm = document.getElementById('profile-creation-form');
+    const profileStarterSelect = document.getElementById('profile-starter-select');
+    const profileStarterText = document.getElementById('profile-starter-text');
+    conversationStarters.forEach(starter => {
+      const option = document.createElement('option');
+      option.value = starter;
+      option.textContent = starter;
+      profileStarterSelect.appendChild(option);
+    });
+    profileStarterSelect.onchange = (e) => {
+      profileStarterText.value = e.target.value;
+    };
+
+    // --- Form Submission Logic ---
+    profileForm.onsubmit = async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const profileData = {
+        name: form.elements['profile-name'].value,
+        age: parseInt(form.elements['profile-age'].value, 10),
+        gender: form.elements['profile-gender'].value,
+        city: form.elements['profile-city'].value,
+        bio: form.elements['profile-bio'].value,
+        interests: form.elements['profile-interests'].value.split(',').map(s => s.trim()).filter(s => s),
+        hobbies: form.elements['profile-hobbies'].value.split(',').map(s => s.trim()).filter(s => s),
+        whatImLookingFor: form.elements['profile-looking-for'].value,
+        height: parseInt(form.elements['profile-height'].value, 10),
+        semester: form.elements['profile-semester'].value,
+        branch: form.elements['profile-branch'].value,
+        conversationStarter: form.elements['profile-starter-text'].value,
+        preferences: {
+          gender: null,
+          ageRange: [18, 99],
+          city: null,
+        },
+        createdAt: serverTimestamp(),
+      };
+
+      const requiredFields = [profileData.name, profileData.age, profileData.gender, profileData.city, profileData.bio, profileData.whatImLookingFor, profileData.height, profileData.semester, profileData.branch, profileData.conversationStarter];
+      const isInterestsValid = profileData.interests.length > 0;
+      const isHobbiesValid = profileData.hobbies.length > 0;
+      
+      const errorMessage = document.getElementById('profile-creation-error');
+      if (requiredFields.some(field => !field) || !isInterestsValid || !isHobbiesValid) {
+        errorMessage.textContent = "All fields are required.";
+        errorMessage.classList.remove('hidden');
+        return;
+      }
+      errorMessage.classList.add('hidden');
+
+      try {
+        await setDoc(doc(db, `artifacts/${appId}/users/${state.user.uid}/profiles/my-profile`), profileData);
+        await setDoc(doc(db, `artifacts/${appId}/public/data/profiles/${state.user.uid}`), profileData);
+        state.profile = profileData;
+        router.navigate('match');
+        startListeners(state.user.uid);
+      } catch (e) {
+        console.error("Error creating profile:", e);
+        errorMessage.textContent = "Failed to save profile. Please try again.";
+        errorMessage.classList.remove('hidden');
+      }
+    };
+
+    // --- Match Card Rendering and Swiping Logic ---
+    const matchCardContainer = document.getElementById('match-card-container');
+    const renderMatchPage = () => {
+      matchCardContainer.innerHTML = '';
+      if (state.potentialMatches.length > 0) {
+        document.getElementById('no-matches-message').classList.add('hidden');
+        document.getElementById('match-buttons').classList.remove('hidden');
+        
+        state.potentialMatches.slice(0, 3).reverse().forEach((match, index) => {
+            const card = document.createElement('div');
+            card.className = `absolute w-full max-w-sm rounded-xl shadow-lg p-6 bg-white border border-sky-100 transform swipe-card`;
+            card.style.zIndex = state.potentialMatches.length - index;
+            card.style.transform = index > 0 ? `scale(${1 - index * 0.05}) translateY(-${index * 10}px)` : '';
+            card.innerHTML = `
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="text-2xl font-bold text-gray-900">${match.name}</h3>
+                    <span class="text-gray-500">${match.age}</span>
+                </div>
+                <p class="text-sm text-gray-500 mb-4">${match.branch}, ${match.semester} semester</p>
+                <p class="mt-4 text-gray-600 font-semibold text-sm">Bio:</p>
+                <p class="mt-1 text-gray-800">${match.bio}</p>
+                <p class="mt-4 text-gray-600 font-semibold text-sm">Conversation Starter:</p>
+                <p class="mt-1 text-sky-600 italic">"${match.conversationStarter}"</p>
+            `;
+            matchCardContainer.appendChild(card);
+        });
+      } else {
+        document.getElementById('no-matches-message').classList.remove('hidden');
+        document.getElementById('match-buttons').classList.add('hidden');
+      }
+    };
+
+    const handleSwipe = async (liked) => {
+        if (state.potentialMatches.length === 0) return;
+        const currentCard = matchCardContainer.querySelector('.swipe-card:last-child');
+        currentCard.classList.add(liked ? 'like-swipe' : 'pass-swipe');
+
+        const currentMatch = state.potentialMatches[0];
+        const myUid = state.user.uid;
+        const theirUid = currentMatch.uid;
+
+        if (liked) {
+          const myLikesRef = doc(db, `artifacts/${appId}/users/${myUid}/likes/${theirUid}`);
+          const theirLikesRef = doc(db, `artifacts/${appId}/users/${theirUid}/likes/${myUid}`);
+
+          try {
+            await runTransaction(db, async (transaction) => {
+              transaction.set(myLikesRef, { timestamp: serverTimestamp(), likedUid: theirUid });
+              const theirLikeDoc = await transaction.get(theirLikesRef);
+              if (theirLikeDoc.exists()) {
+                const myMatchRef = doc(db, `artifacts/${appId}/users/${myUid}/matches/${theirUid}`);
+                const theirMatchRef = doc(db, `artifacts/${appId}/users/${theirUid}/matches/${myUid}`);
+                const matchData = {
+                  matchId: theirUid,
+                  name: currentMatch.name,
+                  age: currentMatch.age,
+                  city: currentMatch.city,
+                  gender: currentMatch.gender,
+                  conversationStarter: currentMatch.conversationStarter,
+                  lastMessage: '',
+                  matchedAt: serverTimestamp(),
+                };
+                const myProfileData = {
+                  matchId: myUid,
+                  name: state.profile.name,
+                  age: state.profile.age,
+                  city: state.profile.city,
+                  gender: state.profile.gender,
+                  conversationStarter: state.profile.conversationStarter,
+                  lastMessage: '',
+                  matchedAt: serverTimestamp(),
+                };
+                transaction.set(myMatchRef, matchData);
+                transaction.set(theirMatchRef, myProfileData);
+              }
+            });
+          } catch (e) {
+            console.error("Transaction failed: ", e);
+            showModal("Error", "An error occurred during matching. Please try again.");
+          }
+        }
+        
+        setTimeout(() => {
+          state.potentialMatches = state.potentialMatches.slice(1);
+          renderMatchPage();
+        }, 300);
+    };
+
+    document.getElementById('like-button').onclick = () => handleSwipe(true);
+    document.getElementById('pass-button').onclick = () => handleSwipe(false);
+
+    // --- Matches List UI ---
+    const renderMatchesPage = () => {
+      const matchesList = document.getElementById('matches-list');
+      matchesList.innerHTML = '';
+      if (state.matches.length > 0) {
+        document.getElementById('no-matches-found').classList.add('hidden');
+        state.matches.forEach(match => {
+          const li = document.createElement('li');
+          li.className = 'flex items-center p-4 space-x-4 cursor-pointer hover:bg-sky-50 transition-colors duration-200';
+          li.onclick = () => {
+            state.activeChat = match;
+            router.navigate('chat');
+            renderChatPage();
+          };
+          li.innerHTML = `
+            <div class="flex-1">
+              <h4 class="text-lg font-semibold text-gray-900">${match.name}</h4>
+              <p class="text-sm text-gray-500 truncate">${match.lastMessage || 'Say hi!'}</p>
+            </div>
+          `;
+          matchesList.appendChild(li);
+        });
+      } else {
+        document.getElementById('no-matches-found').classList.remove('hidden');
+      }
+    };
+
+    // --- Profile & Settings UI ---
+    const renderProfilePage = () => {
+      if (!state.profile) return;
+      const container = document.getElementById('profile-details-container');
+      container.innerHTML = `
+        <h2 class="text-3xl font-bold text-gray-900">${state.profile.name}</h2>
+        <p class="text-lg text-gray-600 mt-2 text-center">${state.profile.age}, ${state.profile.city}</p>
+        <p class="text-sm text-gray-500 mt-1">${state.profile.gender} | ${state.profile.height} cm</p>
+        <p class="text-sm text-gray-500">${state.profile.branch}, ${state.profile.semester} semester</p>
+        
+        <div class="mt-4 w-full p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <p class="text-gray-600 font-semibold text-sm">Bio:</p>
+          <p class="text-gray-800">${state.profile.bio}</p>
+        </div>
+        <div class="mt-4 w-full p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <p class="text-gray-600 font-semibold text-sm">What I'm looking for:</p>
+          <p class="text-gray-800">${state.profile.whatImLookingFor}</p>
+        </div>
+        <div class="mt-4 w-full p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <p class="text-gray-600 font-semibold text-sm">Interests:</p>
+          <div class="flex flex-wrap gap-2 mt-1">
+            ${state.profile.interests.map(i => `<span class="bg-sky-100 text-sky-800 text-sm px-2 py-1 rounded-full">${i}</span>`).join('')}
+          </div>
+        </div>
+        <div class="mt-4 w-full p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <p class="text-gray-600 font-semibold text-sm">Hobbies:</p>
+          <div class="flex flex-wrap gap-2 mt-1">
+            ${state.profile.hobbies.map(h => `<span class="bg-sky-100 text-sky-800 text-sm px-2 py-1 rounded-full">${h}</span>`).join('')}
+          </div>
+        </div>
+        <div class="mt-4 w-full p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <p class="text-gray-600 font-semibold text-sm">Conversation Starter:</p>
+          <p class="text-sky-600 italic">"${state.profile.conversationStarter}"</p>
+        </div>
+        <div class="flex space-x-4 mt-6">
+          <button id="edit-profile-button" class="px-6 py-2 bg-sky-500 text-white rounded-full font-semibold shadow-md hover:bg-sky-600 transition-colors duration-200 flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings mr-2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 0 2.73l-.15.1a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1 0-2.73l.15-.1a2 2 0 0 0 .73-2.73l-.22-.39a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+            Settings
+          </button>
+        </div>
+      `;
+      document.getElementById('edit-profile-button').onclick = () => router.navigate('settings');
+    };
+
+    const renderSettingsPage = () => {
+      if (!state.profile) return;
+      const settingsContainer = document.getElementById('settings-container');
+      settingsContainer.innerHTML = `
+        <h2 class="text-2xl font-bold text-center text-sky-600 mb-6">Settings</h2>
+        <p id="settings-error" class="text-red-500 text-center mb-4 hidden"></p>
+        <div id="settings-view-mode" class="w-full">
+          <div class="space-y-4">
+            <h3 class="text-xl font-semibold">Discovery Preferences</h3>
+            <p class="text-gray-600">Gender: <span class="font-bold">${state.profile.preferences.gender || 'Any'}</span></p>
+            <p class="text-gray-600">Age Range: <span class="font-bold">${state.profile.preferences.ageRange?.[0] || '18'} - ${state.profile.preferences.ageRange?.[1] || '99'}</span></p>
+            <p class="text-gray-600">City: <span class="font-bold">${state.profile.preferences.city || 'Any'}</span></p>
+          </div>
+          <div class="flex flex-col space-y-4 mt-8">
+            <button id="edit-mode-button" class="px-6 py-3 bg-sky-500 text-white rounded-full font-semibold shadow-md hover:bg-sky-600 transition-colors duration-200">
+              Edit Profile & Preferences
+            </button>
+            <button id="logout-button" class="px-6 py-3 bg-gray-200 text-gray-800 rounded-full font-semibold shadow-md hover:bg-gray-300 transition-colors duration-200 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-log-out mr-2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+              Log Out
+            </button>
+            <button id="delete-account-button" class="px-6 py-3 bg-red-100 text-red-600 rounded-full font-semibold shadow-md hover:bg-red-200 transition-colors duration-200 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-2 mr-2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+              Delete Account
+            </button>
+          </div>
+        </div>
+      `;
+      document.getElementById('edit-mode-button').onclick = () => renderEditSettingsPage();
+      document.getElementById('logout-button').onclick = async () => { await signOut(auth); window.location.reload(); };
+      document.getElementById('delete-account-button').onclick = () => showModal('Delete Account?', 'This action is permanent and will remove all your data. Are you sure?', handleDeleteAccount, () => modal.backdrop.classList.add('hidden'));
+    };
+
+    const renderEditSettingsPage = () => {
+      const settingsContainer = document.getElementById('settings-container');
+      const profile = state.profile;
+      settingsContainer.innerHTML = `
+        <h2 class="text-2xl font-bold text-center text-sky-600 mb-6">Edit Profile & Preferences</h2>
+        <p id="settings-edit-error" class="text-red-500 text-center mb-4 hidden"></p>
+        <form id="settings-edit-form" class="w-full space-y-4">
+          <h3 class="text-xl font-semibold text-gray-800 mb-4">Edit Profile</h3>
+          <input type="text" id="edit-name" placeholder="Display Name" value="${profile.name}" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" />
+          <textarea id="edit-bio" placeholder="Short Bio" rows="4" maxlength="300" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500">${profile.bio}</textarea>
+          <p id="edit-bio-count" class="text-right text-sm text-gray-500">${profile.bio.length}/300</p>
+          <input type="text" id="edit-interests" placeholder="Interests (comma-separated)" value="${profile.interests.join(', ')}" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" />
+          <input type="text" id="edit-hobbies" placeholder="Hobbies (comma-separated)" value="${profile.hobbies.join(', ')}" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" />
+          <input type="text" id="edit-looking-for" placeholder="What I'm looking for" value="${profile.whatImLookingFor}" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" />
+          <input type="number" id="edit-height" placeholder="Height (cm)" value="${profile.height}" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" />
+          <input type="text" id="edit-semester" placeholder="Semester (e.g., '5th')" value="${profile.semester}" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" />
+          <input type="text" id="edit-branch" placeholder="Branch (e.g., 'Computer Science')" value="${profile.branch}" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" />
+          <select id="edit-starter-select" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500">
+            <option value="">Select a Conversation Starter</option>
+            ${conversationStarters.map(starter => `<option value="${starter}">${starter}</option>`).join('')}
+          </select>
+          <textarea id="edit-starter-text" placeholder="Write or complete your opener line here..." rows="2" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500">${profile.conversationStarter}</textarea>
+          
+          <h3 class="text-xl font-semibold text-gray-800 mt-8 mb-4">Edit Preferences</h3>
+          <select id="edit-gender-pref" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500">
+            <option value="">Any Gender</option>
+            <option value="Male" ${profile.preferences.gender === 'Male' ? 'selected' : ''}>Male</option>
+            <option value="Female" ${profile.preferences.gender === 'Female' ? 'selected' : ''}>Female</option>
+            <option value="Non-binary" ${profile.preferences.gender === 'Non-binary' ? 'selected' : ''}>Non-binary</option>
+          </select>
+          <div class="flex space-x-2">
+            <input type="number" id="edit-age-min" placeholder="Min Age" value="${profile.preferences.ageRange?.[0] || 18}" class="w-1/2 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" />
+            <input type="number" id="edit-age-max" placeholder="Max Age" value="${profile.preferences.ageRange?.[1] || 99}" class="w-1/2 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" />
+          </div>
+          <input type="text" id="edit-city-pref" placeholder="City Preference (e.g., 'New York')" value="${profile.preferences.city || ''}" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500" />
+          
+          <div class="flex justify-between w-full mt-6">
+            <button type="button" id="cancel-edit-button" class="px-6 py-2 bg-gray-200 text-gray-800 rounded-full font-semibold shadow-md hover:bg-gray-300 transition-colors duration-200">
+              Cancel
+            </button>
+            <button type="submit" id="save-profile-button" class="px-6 py-2 bg-sky-500 text-white rounded-full font-semibold shadow-md hover:bg-sky-600 transition-colors duration-200">
+              Save Changes
+            </button>
+          </div>
+        </form>
+      `;
+
+      // Event listeners for edit form
+      const editStarterSelect = document.getElementById('edit-starter-select');
+      const editStarterText = document.getElementById('edit-starter-text');
+      if (editStarterSelect && editStarterText) {
+          editStarterSelect.value = conversationStarters.includes(profile.conversationStarter) ? profile.conversationStarter : '';
+          editStarterText.value = profile.conversationStarter;
+          editStarterSelect.onchange = (e) => {
+              if (e.target.value) {
+                  editStarterText.value = e.target.value;
+              }
+          };
+      }
+      document.getElementById('edit-bio').oninput = (e) => {
+        document.getElementById('edit-bio-count').textContent = `${e.target.value.length}/300`;
+      };
+      document.getElementById('cancel-edit-button').onclick = () => renderSettingsPage();
+      document.getElementById('settings-edit-form').onsubmit = async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const updatedProfileData = {
+          ...profile,
+          name: form.elements['edit-name'].value,
+          bio: form.elements['edit-bio'].value,
+          interests: form.elements['edit-interests'].value.split(',').map(s => s.trim()).filter(s => s),
+          hobbies: form.elements['edit-hobbies'].value.split(',').map(s => s.trim()).filter(s => s),
+          whatImLookingFor: form.elements['edit-looking-for'].value,
+          height: parseInt(form.elements['edit-height'].value, 10),
+          semester: form.elements['edit-semester'].value,
+          branch: form.elements['edit-branch'].value,
+          conversationStarter: form.elements['edit-starter-text'].value,
+          preferences: {
+            gender: form.elements['edit-gender-pref'].value || null,
+            ageRange: [parseInt(form.elements['edit-age-min'].value, 10), parseInt(form.elements['edit-age-max'].value, 10)],
+            city: form.elements['edit-city-pref'].value || null,
+          },
+        };
+
+        const requiredFields = [updatedProfileData.name, updatedProfileData.bio, updatedProfileData.whatImLookingFor, updatedProfileData.height, updatedProfileData.semester, updatedProfileData.branch, updatedProfileData.conversationStarter];
+        const isInterestsValid = updatedProfileData.interests.length > 0;
+        const isHobbiesValid = updatedProfileData.hobbies.length > 0;
+        
+        const errorMessage = document.getElementById('settings-edit-error');
+        if (requiredFields.some(field => !field) || !isInterestsValid || !isHobbiesValid) {
+          errorMessage.textContent = "All required fields must be filled.";
+          errorMessage.classList.remove('hidden');
+          return;
+        }
+        errorMessage.classList.add('hidden');
+
+        try {
+          await setDoc(doc(db, `artifacts/${appId}/users/${state.user.uid}/profiles/my-profile`), updatedProfileData, { merge: true });
+          await setDoc(doc(db, `artifacts/${appId}/public/data/profiles/${state.user.uid}`), updatedProfileData, { merge: true });
+          state.profile = updatedProfileData;
+          renderSettingsPage();
+        } catch (e) {
+          console.error("Error updating profile:", e);
+          errorMessage.textContent = "Failed to save changes. Please try again.";
+          errorMessage.classList.remove('hidden');
+        }
+      };
+    };
+
+    const handleDeleteAccount = async () => {
+      try {
+        await deleteDoc(doc(db, `artifacts/${appId}/public/data/profiles/${state.user.uid}`));
+        await deleteDoc(doc(db, `artifacts/${appId}/users/${state.user.uid}/profiles/my-profile`));
+        await signOut(auth);
+        window.location.reload();
+      } catch (e) {
+        console.error("Error deleting account:", e);
+        showModal("Error", "Failed to delete account. Please try again.");
+      }
+    };
+
+    // --- Chat UI ---
+    let unsubscribeChat = null;
+    const renderChatPage = () => {
+      if (!state.activeChat) return;
+      document.getElementById('chat-match-name').textContent = state.activeChat.name;
+      const chatMessagesContainer = document.getElementById('chat-messages');
+      chatMessagesContainer.innerHTML = '';
+      
+      const chatCollectionRef = collection(db, `artifacts/${appId}/users/${state.user.uid}/matches/${state.activeChat.id}/messages`);
+      unsubscribeChat = onSnapshot(chatCollectionRef, (snapshot) => {
+        const messages = snapshot.docs.map(doc => doc.data()).sort((a,b) => a.timestamp - b.timestamp);
+        chatMessagesContainer.innerHTML = '';
+        messages.forEach(msg => {
+          const div = document.createElement('div');
+          div.className = `flex ${msg.senderId === state.user.uid ? 'justify-end' : 'justify-start'}`;
+          div.innerHTML = `
+            <div class="max-w-[75%] p-3 rounded-xl shadow-md ${msg.senderId === state.user.uid ? 'bg-sky-500 text-white rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none'}">
+              ${msg.text}
+            </div>
+          `;
+          chatMessagesContainer.appendChild(div);
+        });
+        chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
+      });
+    };
+    
+    document.getElementById('chat-back-button').onclick = () => {
+        state.activeChat = null;
+        if (unsubscribeChat) unsubscribeChat();
+        router.navigate('matches');
+    };
+    document.getElementById('chat-send-button').onclick = async () => {
+      const input = document.getElementById('chat-input');
+      const text = input.value.trim();
+      if (!text) return;
+      const myChatRef = collection(db, `artifacts/${appId}/users/${state.user.uid}/matches/${state.activeChat.id}/messages`);
+      const theirChatRef = collection(db, `artifacts/${appId}/users/${state.activeChat.id}/matches/${state.user.uid}/messages`);
+      const messagePayload = { text, senderId: state.user.uid, timestamp: serverTimestamp() };
+      try {
+        await Promise.all([
+          addDoc(myChatRef, messagePayload),
+          addDoc(theirChatRef, messagePayload)
+        ]);
+        await Promise.all([
+          setDoc(doc(db, `artifacts/${appId}/users/${state.user.uid}/matches/${state.activeChat.id}`), { lastMessage: text }, { merge: true }),
+          setDoc(doc(db, `artifacts/${appId}/users/${state.activeChat.id}/matches/${state.user.uid}`), { lastMessage: text }, { merge: true })
+        ]);
+        input.value = '';
+      } catch (e) {
+        console.error("Error sending message:", e);
+        showModal("Error", "Failed to send message.");
+      }
+    };
+    document.getElementById('chat-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') document.getElementById('chat-send-button').click();
+    });
+
+    document.getElementById('email-login-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('email-input').value;
+      const password = document.getElementById('password-input').value;
+      const errorDiv = document.getElementById('login-error');
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+      } catch (e) {
+        if (e.code === 'auth/user-not-found' || e.code === 'auth/wrong-password') {
+          try {
+            await createUserWithEmailAndPassword(auth, email, password);
+          } catch (e) {
+            errorDiv.textContent = e.message;
+            errorDiv.classList.remove('hidden');
+          }
+        } else {
+          errorDiv.textContent = e.message;
+          errorDiv.classList.remove('hidden');
+        }
+      }
+    };
+
+    document.getElementById('google-login-button').onclick = async () => {
+      const provider = new GoogleAuthProvider();
+      const errorDiv = document.getElementById('login-error');
+      try {
+        await signInWithPopup(auth, provider);
+      } catch (e) {
+        errorDiv.textContent = e.message;
+        errorDiv.classList.remove('hidden');
+      }
+    };
+
+    document.getElementById('profile-bio').addEventListener('input', (e) => {
+      document.getElementById('bio-count').textContent = `${e.target.value.length}/300`;
+    });
+  </script>
+</body>
+</html>
